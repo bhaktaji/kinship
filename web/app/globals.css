@@ -1,0 +1,216 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --canvas: 247 244 238;
+  --surface: 255 253 249;
+  --elevated: 255 255 255;
+  --ink: 28 27 24;
+  --muted: 95 90 82;
+  --faint: 139 132 122;
+  --line: 227 220 209;
+  --brand: 182 76 43;
+  --brand-soft: 249 235 227;
+  --forest: 45 72 57;
+  --sage: 104 126 96;
+  --gold: 188 139 44;
+  --danger: 173 44 35;
+  --success: 40 103 72;
+  --warning: 154 92 12;
+  --info: 42 86 137;
+  --shadow: 28 27 24;
+}
+
+* {
+  border-color: rgb(var(--line));
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-canvas font-sans text-ink antialiased;
+  min-height: 100vh;
+  min-height: 100dvh;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgb(var(--brand) / 0.2);
+}
+
+/* Visible, consistent keyboard focus everywhere. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid rgb(var(--forest));
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+
+  h1,
+  h2 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@layer components {
+  .shell {
+    @apply mx-auto w-full max-w-shell px-4 sm:px-6 lg:px-8;
+  }
+
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 100;
+    padding: 0.75rem 1rem;
+    border-radius: 0 0 0.75rem 0;
+    background: rgb(var(--ink));
+    color: rgb(var(--canvas));
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .skip-link:focus {
+    left: 0;
+  }
+
+  .btn {
+    @apply inline-flex min-h-11 select-none items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition duration-200 ease-out-soft disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-forest text-white shadow-sm hover:bg-forest/90 active:scale-[0.99];
+  }
+
+  .btn-accent {
+    @apply btn bg-brand text-white shadow-sm hover:bg-brand/90 active:scale-[0.99];
+  }
+
+  .btn-secondary {
+    @apply btn border border-line bg-surface text-ink hover:border-ink/25 hover:bg-elevated active:scale-[0.99];
+  }
+
+  .btn-ghost {
+    @apply btn text-muted hover:bg-ink/[0.055] hover:text-ink;
+  }
+
+  .btn-danger {
+    @apply btn border border-danger/25 bg-danger/5 text-danger hover:bg-danger/10;
+  }
+
+  .btn-sm {
+    @apply min-h-9 px-3.5 text-[0.8125rem];
+  }
+
+  .btn-icon {
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-full text-muted transition hover:bg-ink/[0.055] hover:text-ink;
+  }
+
+  .field {
+    @apply w-full rounded-md border border-line bg-surface px-3.5 py-2.5 text-[15px] text-ink outline-none transition placeholder:text-faint focus:border-forest/60 focus:ring-4 focus:ring-forest/10 disabled:opacity-60;
+    min-height: 44px;
+  }
+
+  .field-lg {
+    @apply px-4 py-3 text-base;
+    min-height: 50px;
+  }
+
+  .label {
+    @apply text-small font-medium text-ink;
+  }
+
+  .hint {
+    @apply text-small text-muted;
+  }
+
+  .eyebrow {
+    @apply text-micro font-semibold uppercase tracking-[0.18em] text-brand;
+  }
+
+  .card {
+    @apply rounded-lg border border-line bg-surface shadow-card;
+  }
+
+  .card-hover {
+    @apply transition duration-300 ease-out-soft hover:-translate-y-0.5 hover:shadow-lift;
+  }
+
+  .panel {
+    @apply rounded-lg border border-line bg-surface/80;
+  }
+
+  .chip {
+    @apply inline-flex min-h-9 select-none items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-small font-medium text-muted transition hover:border-ink/25 hover:text-ink;
+  }
+
+  .chip-active {
+    @apply border-forest bg-forest text-white hover:border-forest hover:text-white;
+  }
+
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.06em];
+  }
+
+  .nav-link {
+    @apply relative inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-small font-medium text-muted transition hover:bg-ink/[0.05] hover:text-ink;
+  }
+
+  .nav-link[data-active="true"] {
+    @apply bg-ink/[0.06] text-ink;
+  }
+
+  .skeleton {
+    @apply animate-pulse rounded-md bg-ink/[0.07];
+  }
+
+  .divider {
+    @apply border-t border-line;
+  }
+
+  .link {
+    @apply font-medium text-brand underline-offset-4 hover:underline;
+  }
+
+  .field-group {
+    @apply space-y-1.5;
+  }
+
+  .meta {
+    @apply flex items-center gap-1.5 text-small text-muted;
+  }
+
+  .stat {
+    @apply rounded-md border border-line bg-surface px-4 py-3;
+  }
+}
+
+/* Respect the OS reduced-motion preference for every transition and skeleton. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Hide scrollbars on horizontal rails while keeping keyboard scrolling. */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

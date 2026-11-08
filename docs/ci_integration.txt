@@ -1,0 +1,184 @@
+# CI Integration
+## Kinship — Continuous Integration and Quality Gates
+
+Version: 1.1 | Status: Reviewed for implementation | Target: GitHub Actions
+
+The repository has no git history or workflow files yet; this document defines the
+pipeline that Phase 1 must add at `.github/workflows/ci.yml`.
+
+---
+
+## 1. Goals
+
+1. Every pull request compiles, migrates, and passes unit + integration tests.
+2. A broken API contract or schema fails the build, not the reviewer.
+3. The frontend never ships without lint, type-check and a production build.
+4. Critical user journeys (E2E) run on every PR once Phase 5 lands.
+5. Load and security scans run nightly, not on every push.
+
+---
+
+## 2. Pipeline
+
+~~~text
+push / PR
+   │
+   ├─ backend ── mvn -B verify (unit + Testcontainers IT) ── coverage report
+   ├─ frontend ─ npm ci → lint → typecheck → build → bundle budget
+   ├─ openapi ── start api against containers, GET /v3/api-docs, diff committed snapshot
+   └─ e2e (PR + main, Phase 5+) ─ docker compose up → Playwright → traces on failure
+
+nightly
+   └─ k6 smoke + RSVP race + dependency/security scan → artifacts
+~~~
+
+---
+
+## 3. Workflow (Phase 1 baseline)
+
+~~~yaml
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21', cache: maven }
+      - name: Verify (unit + integration)
+        working-directory: api
+        run: mvn -B -ntp verify
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: surefire-reports
+          path: api/target/surefire-reports
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
+      - working-directory: web
+        run: npm ci
+      - working-directory: web
+        run: npm run lint && npm run typecheck && npm run build
+~~~
+
+Notes:
+
+- Testcontainers works on `ubuntu-latest` because Docker is available; no
+  service containers are needed for PostGIS/Redis.
+- The OpenAPI snapshot job (diagram above) is added in Phase 1 once
+  `/v3/api-docs` exists: start the API against containers, fetch the document,
+  and diff it against `docs/openapi.json` committed with the phase.
+- `node-version: 22` is the CI baseline. If the local Node 26 build succeeds,
+  keep 22 in CI for reproducibility and document the local version in the README.
+- Maven and npm caches are keyed by `pom.xml` / `package-lock.json`.
+
+---
+
+## 4. E2E Job (added in Phase 5)
+
+~~~yaml
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -f infra/docker-compose.yml up -d --build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+        working-directory: web
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: playwright-traces, path: web/test-results }
+    timeout-minutes: 25
+~~~
+
+The compose stack must expose deterministic seeded data and wait for `/readyz`
+before tests start (healthcheck + `docker compose up --wait`).
+
+---
+
+## 5. Nightly Job
+
+| Step | Command | Failure action |
+|---|---|---|
+| k6 smoke + RSVP race | `k6 run docs/rsvp_race_script.js` with seeded event | Open issue, do not block merges |
+| Dependency scan (backend) | `mvn -B org.owasp:dependency-check-maven:check` | Fail on CVSS ≥ 7 |
+| Dependency scan (frontend) | `npm audit --omit=dev --audit-level=high` | Fail on high |
+| Container scan | Trivy on built images (Phase 6) | Fail on high |
+
+Load baselines are stored in `docs/perf/baseline.md` and compared manually;
+automated regression thresholds start only after Phase 6 establishes them.
+
+---
+
+## 6. Quality Gates (branch protection)
+
+A pull request merges only when:
+
+1. `backend` and `frontend` jobs are green.
+2. The phase's acceptance tests from `testing_plan.md` are green.
+3. No new high-severity dependency findings.
+4. `PHASE_N.md` is present for the phase being closed.
+5. At least one review; the author does not self-approve.
+
+---
+
+## 7. Local Parity
+
+The same commands must work on Windows without CI:
+
+~~~powershell
+# backend (requires PostGIS + Redis; Docker optional)
+cd api
+mvn -B verify
+
+# frontend
+cd web
+npm ci
+npm run lint
+npm run typecheck
+npm run build
+
+# stack (requires Docker Desktop + WSL2)
+docker compose -f infra/docker-compose.yml up --build
+~~~
+
+Current workstation status: Java, Maven, Node and PostgreSQL 16 are installed;
+**PostGIS, Redis and Docker are missing**, so `mvn verify` cannot pass yet.
+This is an environment prerequisite, not a code defect (see
+`implementation_plan.md` §6).
+
+---
+
+## 8. Secrets and Configuration
+
+- CI secrets: `KINSHIP_JWT_SECRET` (test-only value), no production credentials.
+- Integration tests use Testcontainers-generated credentials; never a shared database.
+- E2E uses the compose stack with a `test` Spring profile and a throwaway database.
+- No secret is echoed in logs; GitHub masks repository secrets automatically, but
+  prefer explicit `env:` blocks over inline values.
+
+---
+
+## 9. Artifacts
+
+| Artifact | Retention | Purpose |
+|---|---|---|
+| Surefire/Failsafe reports | 14 days | Diagnose flaky or failing tests |
+| JaCoCo coverage report | 14 days | Coverage gate evidence |
+| Playwright traces/videos on failure | 7 days | E2E triage |
+| k6 summary JSON | 30 days | Trend comparison |
+| OpenAPI snapshot diff | 14 days | Contract drift review |

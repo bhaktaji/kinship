@@ -1,0 +1,36 @@
+# Local startup logs and PID files
+logs/
+
+# Build output
+api/target/
+web/node_modules/
+web/.next/
+web/out/
+web/build.log
+*.log
+
+# Local tool caches (workstation-specific, never committed)
+.m2repo/
+.npm-cache/
+.buildhome/
+.agents/
+.freebuff/
+skills-lock.json
+
+# Generated performance artifacts and local credentials
+perf/.users.json
+perf/results/
+
+# Runtime uploads (API stores user images outside the repo in Docker)
+api/uploads/
+
+# Environment
+.env
+.env.local
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+Thumbs.db
+.DS_Store

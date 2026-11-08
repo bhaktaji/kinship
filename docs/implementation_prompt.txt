@@ -1,0 +1,88 @@
+# Implementation Prompt for Agent
+## Kinship — Recurring-Activity Friendship Platform
+
+Version: 1.1 | Use this file to bootstrap a coding agent. It is a summary;
+the referenced documents are authoritative.
+
+---
+
+## Mission
+
+Build a mobile-first PWA for adults to discover and join small recurring activity
+groups in one city. Users browse activities by location and interest, join groups
+of 4–6 people, RSVP to recurring events, and chat with the group. The product
+prioritises **repeated in-person interaction over online engagement**.
+
+## Reference documents (read all before writing code)
+
+| File | What it decides |
+|---|---|
+| `hld.md` | Architecture, MVP scope, NFRs, security, trade-offs |
+| `erd.md` | Schema, enums, constraints, invariants |
+| `lld.md` | API contracts, auth/authz, algorithms, concurrency, errors |
+| `implementation_plan.md` | Phase order, dependencies, DoD, environment |
+| `delivery_phase_prompt.md` | Per-phase tasks and acceptance commands |
+| `testing_plan.md` | Test IDs, phase gates, load/chaos expectations |
+| `mobile_optimization.md` | Frontend performance and PWA rules |
+| `ci_integration.txt` | Pipeline and quality gates |
+| `indexes.sql` | Index DDL for `V2__indexes.sql` |
+
+## Mandated stack (do not substitute)
+
+- **Backend:** Java 21, Spring Boot 3.3.x, Maven 3.9.9, Spring MVC, Spring Security,
+  Spring JDBC (`JdbcClient`), Flyway, springdoc-openapi.
+- **Database:** PostgreSQL 16 + PostGIS 3.4 (geography points).
+- **Cache/sessions/queue:** Redis 7 (Lettuce) — cache, refresh tokens, WS tickets,
+  rate limits, pub/sub. No Redis list/stream queues; jobs live in PostgreSQL.
+- **Frontend:** Next.js 14 App Router, TypeScript, Tailwind CSS, TanStack Query,
+  service worker (PWA).
+- **Testing:** JUnit 5, AssertJ, Mockito, Spring Boot Test, Testcontainers,
+  Playwright, k6.
+- **Local runtime:** Docker Compose when available; native PostgreSQL + Redis
+  otherwise (documented in the README).
+
+## Repository layout
+
+~~~text
+kinship/
+├─ api/      Spring Boot application (single Maven module)
+├─ web/      Next.js application
+├─ infra/    docker-compose.yml, init scripts, .env.example
+└─ docs/     this documentation set
+~~~
+
+Backend packages: `com.kinship.{auth,user,activity,group,event,rsvp,match,messaging,notification,common}`.
+Dependencies point in one direction: `common ← user ← activity ← group ← event ← rsvp`,
+with `match` depending on user/group and `messaging` on group/common. No cycles.
+
+## Non-negotiable rules
+
+1. Implement the API exactly as specified in `lld.md`; do not add endpoints.
+2. Schema changes only through Flyway; never edit an applied migration.
+3. Capacity, message sequences and occurrence uniqueness are transactional
+   invariants — use the SQL in `lld.md`, do not reimplement with counters in memory.
+4. Discovery: bounding-box pre-filter then `ST_DWithin`; cursor pagination; no N+1.
+5. Async work never runs on the request thread.
+6. UTC in the database; IANA zone on the series; local time in the UI.
+7. No secrets in the repository; no PII or tokens in logs.
+8. Tests accompany every change; phase gates in `testing_plan.md` are blocking.
+9. Anything out of MVP scope goes to `PHASE_N.md`, not into the codebase.
+10. If a requirement is missing, stop and record the question in `PHASE_N.md`
+    rather than inventing behaviour that contradicts the docs.
+
+## Workflow
+
+1. Read the five documents; confirm the phase prerequisites (PostGIS and Redis
+   must be reachable before P1).
+2. Implement one phase from `delivery_phase_prompt.md`.
+3. Run the phase acceptance commands; fix failures before moving on.
+4. Write `PHASE_N.md` (built, deferred, decisions, risks, follow-ups).
+5. Only then start the next phase.
+
+## Definition of Done
+
+- `mvn -q verify` and `npm run build` green.
+- New endpoints in OpenAPI and in `lld.md` if the contract changed.
+- Integration test for every new transactional invariant.
+- No regressions in the previous phase's acceptance checks.
+- README run instructions still work from a clean checkout.

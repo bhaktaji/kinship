@@ -1,0 +1,83 @@
+name: kinship
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: ${KINSHIP_DB_NAME:-kinship}
+      POSTGRES_USER: ${KINSHIP_DB_USER:-kinship}
+      POSTGRES_PASSWORD: ${KINSHIP_DB_PASSWORD:-kinship}
+    ports:
+      - "5433:5432"
+    volumes:
+      - kinship_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${KINSHIP_DB_USER:-kinship} -d ${KINSHIP_DB_NAME:-kinship}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ../api
+    environment:
+      KINSHIP_DB_URL: jdbc:postgresql://postgres:5432/${KINSHIP_DB_NAME:-kinship}
+      KINSHIP_DB_USER: ${KINSHIP_DB_USER:-kinship}
+      KINSHIP_DB_PASSWORD: ${KINSHIP_DB_PASSWORD:-kinship}
+      KINSHIP_REDIS_HOST: redis
+      KINSHIP_REDIS_PORT: 6379
+      KINSHIP_JWT_SECRET: ${KINSHIP_JWT_SECRET:?set KINSHIP_JWT_SECRET in .env}
+      KINSHIP_CORS_ORIGINS: ${KINSHIP_CORS_ORIGINS:-http://localhost:3000}
+      KINSHIP_COOKIE_SECURE: ${KINSHIP_COOKIE_SECURE:-false}
+      KINSHIP_SEED: ${KINSHIP_SEED:-true}
+      # /actuator/prometheus answers 404 unless this token is presented; a real
+      # deployment must override it rather than rely on the local default.
+      KINSHIP_METRICS_TOKEN: ${KINSHIP_METRICS_TOKEN:-local-metrics-token}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      # The JRE image has no curl/wget; a TCP connect proves the listener is up,
+      # and the workflow separately polls /readyz for DB + Redis readiness.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 40s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ../web
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/manifest.webmanifest"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  kinship_pg:

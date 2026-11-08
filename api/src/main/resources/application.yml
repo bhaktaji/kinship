@@ -1,0 +1,78 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: kinship-api
+  datasource:
+    url: ${KINSHIP_DB_URL:jdbc:postgresql://localhost:5432/kinship}
+    username: ${KINSHIP_DB_USER:kinship}
+    password: ${KINSHIP_DB_PASSWORD:kinship}
+    hikari:
+      # Gate B: at 150 concurrent /v1/users/me calls, pool 10 completed 1,114 of
+      # 1,200 in 33.5s with 86 client failures; pool 20 completed 1,200 in 4.6s.
+      # The 200-VU stage's 40% rejections were 429s from the discovery limiter,
+      # not pool exhaustion. See docs/perf/baseline.md and PHASE_6.md.
+      maximum-pool-size: 20
+      connection-timeout: 3000
+      validation-timeout: 2000
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+  data:
+    redis:
+      host: ${KINSHIP_REDIS_HOST:localhost}
+      port: ${KINSHIP_REDIS_PORT:6379}
+      # Gate B: a 2s command timeout let a Redis outage add 7.2s to discovery.
+      # 300ms keeps the fail-open path fast; normal commands run in < 1ms.
+      timeout: 300ms
+      connect-timeout: 300ms
+      repositories:
+        enabled: false
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+    serialization:
+      write-dates-as-timestamps: false
+  threads:
+    virtual:
+      enabled: true
+
+app:
+  jwt:
+    secret: ${KINSHIP_JWT_SECRET}
+    issuer: kinship
+    access-ttl: 15m
+  auth:
+    refresh-ttl: 30d
+    cookie-secure: ${KINSHIP_COOKIE_SECURE:false}
+  cors-origins: ${KINSHIP_CORS_ORIGINS:http://localhost:3000}
+  seed:
+    enabled: ${KINSHIP_SEED:false}
+  realtime:
+    ticket-ttl: 60s
+  metrics:
+    # Empty means /actuator/prometheus answers 404; set it to scrape metrics.
+    token: ${KINSHIP_METRICS_TOKEN:}
+  reconcile:
+    enabled: ${KINSHIP_RECONCILE_ENABLED:true}
+    cron: ${KINSHIP_RECONCILE_CRON:0 30 3 * * *}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: INFO
+    com.kinship: INFO
