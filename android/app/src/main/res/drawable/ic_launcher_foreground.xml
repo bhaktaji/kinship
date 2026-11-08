@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Warm terracotta circle badge inside 66dp safe zone -->
+    <path
+        android:fillColor="#B64C2B"
+        android:pathData="M54,26 A28,28 0 1,1 53.99,26 Z" />
+    <!-- Warm paper monogram K -->
+    <path
+        android:fillColor="#FFFDF9"
+        android:pathData="M42,39 L47,39 L47,52 L59,39 L65.5,39 L53.5,52 L66.5,69 L59.8,69 L49.8,55.8 L47,58.8 L47,69 L42,69 Z" />
+</vector>

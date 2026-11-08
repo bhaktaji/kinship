@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Kinship</string>
+    <string name="tagline">Small, recurring activity groups that turn neighbours into friends.</string>
+    <string name="tab_discover">Discover</string>
+    <string name="tab_groups">Groups</string>
+    <string name="tab_matches">Matches</string>
+    <string name="tab_profile">Profile</string>
+    <string name="sign_in">Sign in</string>
+    <string name="sign_out">Sign out</string>
+    <string name="create_account">Create account</string>
+    <string name="notifications">Notifications</string>
+    <string name="offline_banner">You\'re offline — showing cached activities</string>
+    <string name="outbox_pending">Queued RSVPs will sync when online</string>
+    <string name="demo_mode_banner">Backend offline — interactive preview ready (or connect local Docker stack at 10.0.2.2:8080)</string>
+</resources>
